@@ -48,10 +48,10 @@ async def load_model():
         if not config.HF_TOKEN:
             raise ValueError("HF_TOKEN 환경변수가 설정되지 않았습니다!")
         
-        logger.info("🔐 Logging into Hugging Face...")
+        logger.info("Logging into Hugging Face...")
         login(config.HF_TOKEN)
         
-        logger.info("📦 Loading tokenizer...")
+        logger.info("Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(
             config.BASE_MODEL_ID,
             trust_remote_code=True,
@@ -59,7 +59,7 @@ async def load_model():
         )
         tokenizer.pad_token = tokenizer.eos_token
         
-        logger.info("🧠 Loading base model with quantization...")
+        logger.info("Loading base model with quantization...")
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
@@ -77,7 +77,7 @@ async def load_model():
             attn_implementation="eager"
         )
         
-        logger.info("🎯 Loading LoRA adapter...")
+        logger.info("Loading LoRA adapter...")
         model = PeftModel.from_pretrained(
             base_model,
             config.LORA_MODEL_ID,
@@ -85,10 +85,10 @@ async def load_model():
         )
         
         device = next(model.parameters()).device
-        logger.info(f"✅ Model loaded successfully on {device}")
+        logger.info(f"Model loaded successfully on {device}")
         
     except Exception as e:
-        logger.error(f"❌ Error loading model: {e}")
+        logger.error(f"Error loading model: {e}")
         raise e
 
 @app.post("/generate", response_model=GenerateResponse)

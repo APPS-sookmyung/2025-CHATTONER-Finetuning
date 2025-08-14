@@ -11,7 +11,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 # 서버 설정
 HOST = "0.0.0.0"
-PORT = 8001
+PORT = 8010
 
 # 추론 설정
 DEFAULT_MAX_NEW_TOKENS = 256
