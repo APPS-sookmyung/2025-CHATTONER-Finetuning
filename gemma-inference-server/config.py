@@ -6,7 +6,7 @@ env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
 BASE_MODEL_ID = "google/gemma-2-2b-it"
-LORA_MODEL_ID = "jimni3155/fine-tuned-gemma-2b-lora"
+LORA_MODEL_ID = "jjejieun/ChatToner2B-2"
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 # 서버 설정

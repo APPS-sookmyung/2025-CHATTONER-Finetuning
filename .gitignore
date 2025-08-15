@@ -16,7 +16,7 @@ venv.bak/
 .env.local
 .env.production
 
-# 모델 파일 (Hugging Face에서 다운로드)
+# 모델 파일
 models/
 *.bin
 *.safetensors
