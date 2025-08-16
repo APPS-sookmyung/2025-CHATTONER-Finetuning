@@ -126,7 +126,7 @@ async def load_model():
         base_model = AutoModelForCausalLM.from_pretrained(
             config.BASE_MODEL_ID,
             quantization_config=bnb_config,
-            device_map="auto", 
+            device_map={"": 0}, 
             trust_remote_code=True,
             torch_dtype=torch.float16,
             attn_implementation="eager"
