@@ -6,6 +6,60 @@ from peft import PeftModel
 from huggingface_hub import login
 import config
 import logging
+import os
+import gc
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+gc.collect()
+print(" CPU cache cleared")
+
+# PyTorch 내부 캐시도 정리
+torch._C._cuda_clearCublasWorkspaces() if torch.cuda.is_available() else None
+print(" All caches cleared and ready!")
+
+# .env 파일 로드 시도
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    logger.info(".env file loaded")
+except ImportError:
+    logger.warning("python-dotenv not installed, using system environment variables only")
+
+# HF_TOKEN 확인 및 입력받기
+def get_hf_token():
+    # 1. config.py에서 확인
+    if hasattr(config, 'HF_TOKEN') and config.HF_TOKEN:
+        return config.HF_TOKEN
+    
+    # 2. 환경변수에서 확인
+    hf_token = os.getenv('HF_TOKEN')
+    if hf_token:
+        return hf_token
+    
+    # 3. 직접 입력받기
+    print("\n HF_TOKEN이 설정되지 않았습니다!")
+    print("Hugging Face 토큰을 입력해주세요:")
+    try:
+        import getpass
+        token = getpass.getpass("HF_TOKEN: ")
+        if token.strip():
+            return token.strip()
+        else:
+            raise ValueError("토큰이 입력되지 않았습니다!")
+    except KeyboardInterrupt:
+        print("\n 토큰 입력이 취소되었습니다.")
+        exit(1)
+    except Exception as e:
+        print(f" 토큰 입력 중 오류: {e}")
+        exit(1)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f" Using device: {device}")
+if torch.cuda.is_available():
+    print(f"GPU Name: {torch.cuda.get_device_name()}")
+    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -44,6 +98,8 @@ async def load_model():
     global tokenizer, model
     
     try:
+        
+        hf_token = os.getenv('HF_TOKEN')
         # 토큰 확인
         if not config.HF_TOKEN:
             raise ValueError("HF_TOKEN 환경변수가 설정되지 않았습니다!")
@@ -70,9 +126,8 @@ async def load_model():
         base_model = AutoModelForCausalLM.from_pretrained(
             config.BASE_MODEL_ID,
             quantization_config=bnb_config,
-            device_map="auto",
+            device_map="auto", 
             trust_remote_code=True,
-            token=True,
             torch_dtype=torch.float16,
             attn_implementation="eager"
         )
