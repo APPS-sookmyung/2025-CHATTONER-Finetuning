@@ -123,6 +123,11 @@ async def generate(request: GenerateRequest):
         generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
         result = generated_text[len(request.prompt):].strip()
         
+        # 캐시 정리
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            logger.info("GPU cache cleared")
         return GenerateResponse(
             result=result,
             status="success",
