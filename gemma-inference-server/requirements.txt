@@ -1,0 +1,17 @@
+# core web
+fastapi==0.116.1
+uvicorn==0.35.0
+python-dotenv==1.1.1
+requests==2.32.4
+pydantic==2.11.7
+
+# hf / llm
+torch==2.8.0
+transformers==4.55.1
+accelerate==1.10.0
+peft==0.17.0
+huggingface_hub==0.34.4
+safetensors==0.6.2
+
+# 4-bit quantization (Linux/WSL only; skip on Windows)
+# bitsandbytes>=0.43 ; platform_system != "Windows"
