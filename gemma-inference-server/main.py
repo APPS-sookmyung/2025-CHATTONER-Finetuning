@@ -207,6 +207,11 @@ async def health_check():
         device=device
     )
 
+@app.get("/status", response_model=HealthResponse)
+async def status():
+    """상태 확인 (health_check와 동일)"""
+    return await health_check()
+
 @app.get("/")
 async def root():
     return {
