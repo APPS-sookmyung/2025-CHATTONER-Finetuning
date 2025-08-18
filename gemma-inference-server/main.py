@@ -8,6 +8,8 @@ import config
 import logging
 import os
 import gc
+import uvicorn
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -98,7 +100,6 @@ async def load_model():
     global tokenizer, model
     
     try:
-        
         hf_token = os.getenv('HF_TOKEN')
         # 토큰 확인
         if not config.HF_TOKEN:
@@ -126,7 +127,7 @@ async def load_model():
         base_model = AutoModelForCausalLM.from_pretrained(
             config.BASE_MODEL_ID,
             quantization_config=bnb_config,
-            device_map={"": 0}, 
+            device_map="auto", 
             trust_remote_code=True,
             torch_dtype=torch.float16,
             attn_implementation="eager"
@@ -136,7 +137,8 @@ async def load_model():
         model = PeftModel.from_pretrained(
             base_model,
             config.LORA_MODEL_ID,
-            token=True
+            token=True,
+            device_map="auto",
         )
         
         device = next(model.parameters()).device
@@ -221,5 +223,4 @@ async def root():
     }
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host=config.HOST, port=config.PORT)
