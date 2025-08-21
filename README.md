@@ -107,3 +107,7 @@ Chat-toner는 단순한 어투 변환을 넘어, 대화 목적/상황/대상별 
 * **개인정보 보호**: 업로드 데이터 익명화·필터링
 * **의미 보존 검증**: 스타일 변화 시 원본 의미가 변형되지 않도록 평가 로직 포함
 * **할루시네이션 방지**: 신뢰도 기반 자료 선택, 후처리 검증
+
+---
+## Fine-tuned Model
+- [jjejieun/ChatToner2B-2](https://huggingface.co/jjejieun/ChatToner2B-2)
