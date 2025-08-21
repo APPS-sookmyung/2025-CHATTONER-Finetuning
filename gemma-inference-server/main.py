@@ -10,62 +10,17 @@ import os
 import gc
 import uvicorn
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 gc.collect()
-print(" CPU cache cleared")
-
-# PyTorch 내부 캐시도 정리
-torch._C._cuda_clearCublasWorkspaces() if torch.cuda.is_available() else None
-print(" All caches cleared and ready!")
-
-# .env 파일 로드 시도
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-    logger.info(".env file loaded")
-except ImportError:
-    logger.warning("python-dotenv not installed, using system environment variables only")
-
-# HF_TOKEN 확인 및 입력받기
-def get_hf_token():
-    # 1. config.py에서 확인
-    if hasattr(config, 'HF_TOKEN') and config.HF_TOKEN:
-        return config.HF_TOKEN
-    
-    # 2. 환경변수에서 확인
-    hf_token = os.getenv('HF_TOKEN')
-    if hf_token:
-        return hf_token
-    
-    # 3. 직접 입력받기
-    print("\n HF_TOKEN이 설정되지 않았습니다!")
-    print("Hugging Face 토큰을 입력해주세요:")
-    try:
-        import getpass
-        token = getpass.getpass("HF_TOKEN: ")
-        if token.strip():
-            return token.strip()
-        else:
-            raise ValueError("토큰이 입력되지 않았습니다!")
-    except KeyboardInterrupt:
-        print("\n 토큰 입력이 취소되었습니다.")
-        exit(1)
-    except Exception as e:
-        print(f" 토큰 입력 중 오류: {e}")
-        exit(1)
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f" Using device: {device}")
+print(f"Using device: {device}")
 if torch.cuda.is_available():
-    print(f"GPU Name: {torch.cuda.get_device_name()}")
-    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
-
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+    print(f"GPU: {torch.cuda.get_device_name()}")
 
 app = FastAPI(
     title="Gemma-2B LoRA Inference Server",
@@ -73,7 +28,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 글로벌 변수
 tokenizer = None
 model = None
 
@@ -101,14 +55,11 @@ async def load_model():
     
     try:
         hf_token = os.getenv('HF_TOKEN')
-        # 토큰 확인
-        if not config.HF_TOKEN:
-            raise ValueError("HF_TOKEN 환경변수가 설정되지 않았습니다!")
+        if not hf_token:
+            raise ValueError("HF_TOKEN not set")
         
-        logger.info("Logging into Hugging Face...")
-        login(config.HF_TOKEN)
+        login(hf_token)
         
-        logger.info("Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(
             config.BASE_MODEL_ID,
             trust_remote_code=True,
@@ -116,7 +67,6 @@ async def load_model():
         )
         tokenizer.pad_token = tokenizer.eos_token
         
-        logger.info("Loading base model with quantization...")
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
@@ -133,7 +83,6 @@ async def load_model():
             attn_implementation="eager"
         )
         
-        logger.info("Loading LoRA adapter...")
         model = PeftModel.from_pretrained(
             base_model,
             config.LORA_MODEL_ID,
@@ -142,10 +91,10 @@ async def load_model():
         )
         
         device = next(model.parameters()).device
-        logger.info(f"Model loaded successfully on {device}")
+        logger.info(f"Model loaded on {device}")
         
     except Exception as e:
-        logger.error(f"Error loading model: {e}")
+        logger.error(f"Model loading failed: {e}")
         raise e
 
 @app.post("/generate", response_model=GenerateResponse)
@@ -154,16 +103,13 @@ async def generate(request: GenerateRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     try:
-        # 입력 길이 제한
         if len(request.prompt) > 2000:
-            raise HTTPException(status_code=400, detail="Prompt too long (max 2000 characters)")
+            raise HTTPException(status_code=400, detail="Prompt too long")
         
-        # 토크나이징
         device = next(model.parameters()).device
         inputs = tokenizer(request.prompt, return_tensors="pt").to(device)
         input_length = inputs["input_ids"].shape[1]
         
-        # 생성
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
@@ -176,15 +122,12 @@ async def generate(request: GenerateRequest):
                 no_repeat_ngram_size=3
             )
         
-        # 디코딩 (원본 프롬프트 제거)
         generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
         result = generated_text[len(request.prompt):].strip()
         
-        # 캐시 정리
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-            logger.info("GPU cache cleared")
+            
         return GenerateResponse(
             result=result,
             status="success",
@@ -193,8 +136,8 @@ async def generate(request: GenerateRequest):
         )
         
     except Exception as e:
-        logger.error(f"Generation error: {e}")
-        raise HTTPException(status_code=500, detail=f"Generation error: {str(e)}")
+        logger.error(f"Generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -211,13 +154,12 @@ async def health_check():
 
 @app.get("/status", response_model=HealthResponse)
 async def status():
-    """상태 확인 (health_check와 동일)"""
     return await health_check()
 
 @app.get("/")
 async def root():
     return {
-        "message": "Gemma-2B LoRA Inference Server is running!",
+        "message": "Gemma-2B LoRA Inference Server",
         "endpoints": ["/generate", "/health"],
         "model": config.LORA_MODEL_ID
     }
