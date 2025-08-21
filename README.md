@@ -88,6 +88,18 @@ Chat-toner는 단순한 어투 변환을 넘어, 대화 목적/상황/대상별 
 * **평가 지표**: BLEU, formality score, 문법 검사기 활용
 
 ---
+### 5. **인프라 구성**
+- RunPod GPU 인스턴스 활용
+- HuggingFace Hub에서 모델 자동 다운로드
+- 4bit 양자화로 메모리 효율성 확보
+
+---
+### 6. **모델 배포 흐름**
+1. HuggingFace Hub에서 LoRA 가중치 다운로드
+2. 베이스 모델에 LoRA 어댑터 적용
+3. FastAPI 서버로 추론 API 제공
+
+---
 
 ## 구현 고려사항
 
